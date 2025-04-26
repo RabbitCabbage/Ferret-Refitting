@@ -26,5 +26,7 @@ const static PrimalLPNParameter ferret_b13 = PrimalLPNParameter(10485760, 1280, 
 const static PrimalLPNParameter ferret_b12 = PrimalLPNParameter(10268672, 2507, 238000, 12, 268800, 1050, 17384, 8);
 const static PrimalLPNParameter ferret_b11 = PrimalLPNParameter(10180608, 4971, 124000, 11, 178944, 699, 17384, 8);
 
+#define QUIET_SETUP
+
 }//namespace
 #endif //EMP_FERRET_CONSTANTS_H__

@@ -173,3 +173,48 @@ double test_rcot(T* ot, NetIO *io, int party, int64_t length, bool inplace) {
 	delete[] b;
 	return t;
 }
+
+template <typename T>
+double test_base_cot(T* ot, NetIO *io, int party, int64_t length) {
+
+	io->sync();
+	auto start = clock_start();
+
+	// std::cout << "Party " << (party == ALICE ? "A" : "B") << "\t" << "pre COT begin..." << std::endl;
+	if (party == BOB) ot->cot_gen_pre();
+	else {
+		block *delta = new block;
+		PRG prg;
+		prg.random_block(delta, 1);
+		ot->cot_gen_pre(*delta);
+		delete delta;		
+	}
+	io->flush();
+	// std::cout << "pre COT end..." << std::endl;
+
+	block *data = new block[length];
+	// std::cout << "Party " << (party == ALICE ? "A" : "B") << "\t" << "COT begin..." << std::endl;
+	ot->cot_gen(data, length);
+	// std::cout << "COT end..." << std::endl;
+
+	long long t = time_from(start);
+	io->sync();
+
+	// check the correctness
+	bool correct = ot->check_cot(data, length);
+	
+	if (party == ALICE)
+		std::cout << "S ";
+	else
+		std::cout << "R ";
+
+	if (!correct) {
+		std::cout << "COT failed!\t";
+	} else {
+		std::cout << "Tests passed.\t";
+	}
+
+	delete[] data;
+
+	return t;
+}
