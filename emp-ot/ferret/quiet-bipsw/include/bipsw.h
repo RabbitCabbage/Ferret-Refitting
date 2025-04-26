@@ -148,14 +148,20 @@ void pp_gen(
 {
     pp->key_len = key_len;
 
-    // Generate PRG key (for generating random inputs)
-    uint128_t prg_key;
-    RAND_bytes((uint8_t *)&prg_key, sizeof(uint128_t));
-    EVP_CIPHER_CTX *prg_ctx = PRGkey_gen((uint8_t *)&prg_key);
+    uint128_t prg_key = 1;
+    uint128_t hash_key = 1;
+    // read from file keys.txt
+    FILE *fp = fopen("keys.txt", "r");
+    if (fp == NULL)
+    {
+        printf("Error opening file\n");
+        return;
+    }
+    fscanf(fp, "%llx", &prg_key);
+    fscanf(fp, "%llx", &hash_key);
+    fclose(fp);
 
-    // Generate hash key (for random oracle)
-    uint128_t hash_key;
-    RAND_bytes((uint8_t *)&hash_key, sizeof(uint128_t));
+    EVP_CIPHER_CTX *prg_ctx = PRGkey_gen((uint8_t *)&prg_key);
     EVP_CIPHER_CTX *hash_ctx = prf_key_gen((uint8_t *)&hash_key);
 
     pp->hash_ctx = hash_ctx;

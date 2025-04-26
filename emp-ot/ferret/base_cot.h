@@ -10,6 +10,12 @@
 #include "emp-ot/ferret/pr/prf.h"
 #include "emp-ot/ferret/pr/polymur.h"
 
+// debug
+// std::string uint128_to_string(uint128_t value) {
+// 	std::ostringstream oss;
+// 	oss << (unsigned long long)(value >> 64) << std::setfill('0') << std::setw(20) << (unsigned long long)(value & 0xFFFFFFFFFFFFFFFFULL);
+// 	return oss.str();
+// }
 
 template<typename IO>
 class BaseCotQuiet { public:
@@ -164,6 +170,8 @@ class BaseCotQuiet { public:
 			block *m1 = new block[size];
 			PRG prg;
 			prg.random_block(m0, size);
+			// copy the m0 to ot_data
+			memcpy(ot_data, m0, size * sizeof(block));
 			// m1 = m0 ^ delta
 			for (int64_t i = 0; i < size; i++) {
 				m1[i] = m0[i] ^ ot_delta;
@@ -171,22 +179,12 @@ class BaseCotQuiet { public:
 			// // turn block to uint128_t, so that we can xor with the list
 			uint128_t *m0_128 = new uint128_t;
 			uint128_t *m1_128 = new uint128_t;
-			bool *m0_binary = new bool[128];
-			bool *m1_binary = new bool[128];
 			uint128_t *lists_prime = new uint128_t[listot_num * 6];
 			for (int64_t i = 0; i < size; i++) {
 				// convert m0 and m1 to uint128_t
 				// LSB at index 0, MSB at index 127
-				block_to_bool(m0_binary, m0[i]);
-				*m0_128 = 0;
-				for (int64_t j = 0; j < 128; j++) {
-					*m0_128 |= (m0_binary[j] << j);
-				}
-				block_to_bool(m1_binary, m1[i]);
-				*m1_128 = 0;
-				for (int64_t j = 0; j < 128; j++) {
-					*m1_128 |= (m1_binary[j] << j);
-				}
+				*m0_128 = (uint128_t)m0[i];
+				*m1_128 = (uint128_t)m1[i];
 
 				// there are size * 6 list entries in total
 				// xor m0 and m1 with the lists
@@ -202,8 +200,6 @@ class BaseCotQuiet { public:
 			io->send_data(lists_prime, listot_num * 6 * sizeof(uint128_t));
 			io->flush();
 			// free memory
-			delete[] m0_binary;
-			delete[] m1_binary;
 			delete m0_128;
 			delete m1_128;
 			delete[] m0;
@@ -258,20 +254,15 @@ class BaseCotQuiet { public:
 			io->recv_data(lists_prime, listot_num * 6 * sizeof(uint128_t));
 			io->flush();
 
-			bool * tmp_binary = new bool[128];
 			// xor receiver_outputs with the list_prime at right index
 			for (int64_t i = 0; i < listot_num; i++) {
 				uint128_t tmp = receiver_outputs[i] ^ lists_prime[i * 6 + listot_idx[i]];
 				// convert uint128_t to block
-				for (int64_t j = 0; j < 128; j++) {
-					tmp_binary[j] = (tmp >> j) & 1;
-				}
-				ot_data[i] = bool_to_block(tmp_binary);
+				ot_data[i] = makeBlock(tmp >> 64, tmp & 0xFFFFFFFFFFFFFFFFULL);
 			}
 
 			// free memory
 			delete[] lists_prime;
-			delete[] tmp_binary;
 			delete[] listot_choice;
 			delete[] listot_idx;
 			free(receiver_outputs);
@@ -307,10 +298,10 @@ class BaseCotQuiet { public:
 			return true;
 		} else {
 			block * tmp = new block[len];
-			io->recv_block(tmp, len);
 			block ch[2];
 			ch[0] = zero_block;
-			ch[1] = makeBlock(0, 1);
+			io->recv_block(ch+1, 1);
+			io->recv_block(tmp, len);
 			for(int64_t i = 0; i < len; ++i)
 				tmp[i] = tmp[i] ^ ch[ot_bool[i]];
 			bool res = cmpBlock(tmp, data, len);
