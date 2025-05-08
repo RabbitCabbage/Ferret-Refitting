@@ -3,7 +3,6 @@
 #include "emp-ot/ferret/mpcot_reg.h"
 #include "emp-ot/ferret/base_cot.h"
 #include "emp-ot/ferret/lpn_f2.h"
-#include "emp-ot/ferret/ssd_f2.h"
 #include "emp-ot/ferret/constants.h"
 
 namespace emp {
@@ -20,13 +19,11 @@ public:
 	using COT<T>::io;
 	using COT<T>::Delta;
 
-	// PrimalLPNParameter param;
-	SyndromeDecodingParameter param;
+	PrimalLPNParameter param;
 	int64_t ot_used, ot_limit;
 
 	FerretCOT(int party, int threads, T **ios, bool malicious = false, bool run_setup = true, 
-// PrimalLPNParameter param = ferret_b13, std::string pre_file="");
-	SyndromeDecodingParameter param = ssd_b8, std::string pre_file="");
+PrimalLPNParameter param = ferret_b13, std::string pre_file="");
 	
 
 	~FerretCOT();
@@ -66,12 +63,11 @@ private:
 
 	std::string pre_ot_filename;
 
-	BaseCotQuiet<T> *base_cot = nullptr;
+	BaseCot<T> *base_cot = nullptr;
 	OTPre<T> *pre_ot = nullptr;
 	ThreadPool *pool = nullptr;
 	MpcotReg<T> *mpcot = nullptr;
-	// LpnF2<T, 10> *lpn_f2 = nullptr;
-	SsdF2<T, 10> *ssd_f2 = nullptr;
+	LpnF2<T, 10> *lpn_f2 = nullptr;
 
 	
 	void online_sender(block *data, int64_t length);
@@ -84,13 +80,8 @@ private:
 
 	void extend_initialization();
 
-	// void extend(block* ot_output, MpcotReg<T> *mpfss, OTPre<T> *preot, 
-			// LpnF2<T, 10> *lpn, block *ot_input, block seed = zero_block);
-	// first extension: run the GGMs and cuckoo hash
-	// further extensions: keep using the same cot
-	// it seems the delta is not changed, maybe, store a bool and the cache in the mpcot_reg
 	void extend(block* ot_output, MpcotReg<T> *mpfss, OTPre<T> *preot, 
-			SsdF2<T, 10> *ssd_f2, block *ot_input, block seed = zero_block);
+			LpnF2<T, 10> *lpn, block *ot_input, block seed = zero_block);
 
 	void extend_f2k(block *ot_buffer);
 

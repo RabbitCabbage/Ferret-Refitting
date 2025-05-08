@@ -1,15 +1,14 @@
 template<typename T>
 FerretCOT<T>::FerretCOT(int party, int threads, T **ios,
-		bool malicious, bool run_setup, SyndromeDecodingParameter param, std::string pre_file) {
+		bool malicious, bool run_setup, PrimalLPNParameter param, std::string pre_file) {
 	this->party = party;
 	this->threads = threads;
 	io = ios[0];
 	this->ios = ios;
-	// quietot is not malicious-secure
-	this->is_malicious = false;
+	this->is_malicious = malicious;
 	one = makeBlock(0xFFFFFFFFFFFFFFFFLL,0xFFFFFFFFFFFFFFFELL);
 	ch[0] = zero_block;
-	base_cot = new BaseCotQuiet<T>(party, io, malicious);
+	base_cot = new BaseCot<T>(party, io, malicious);
 	pool = new ThreadPool(threads);
 	this->param = param;
 
@@ -37,15 +36,13 @@ FerretCOT<T>::~FerretCOT() {
 	if(pre_ot != nullptr) delete pre_ot;
 	delete base_cot;
 	delete pool;
-	// if(lpn_f2 != nullptr) delete lpn_f2;
-	if(ssd_f2 != nullptr) delete ssd_f2;
+	if(lpn_f2 != nullptr) delete lpn_f2;
 	if(mpcot != nullptr) delete mpcot;
 }
 
 template<typename T>
 void FerretCOT<T>::extend_initialization() {
-	// lpn_f2 = new LpnF2<T, 10>(party, param.n, param.k, pool, io, pool->size());
-	ssd_f2 = new SsdF2<T, 10>(party, param.n, param.k, pool, io, pool->size());
+	lpn_f2 = new LpnF2<T, 10>(party, param.n, param.k, pool, io, pool->size());
 	mpcot = new MpcotReg<T>(party, threads, param.n, param.t, param.log_bin_sz, pool, ios);
 	if(is_malicious) mpcot->set_malicious();
 
@@ -59,25 +56,11 @@ void FerretCOT<T>::extend_initialization() {
 // extend f2k in detail
 template<typename T>
 void FerretCOT<T>::extend(block* ot_output, MpcotReg<T> *mpcot, OTPre<T> *preot, 
-		// LpnF2<T, 10> *lpn, block *ot_input, block seed) {
-		SsdF2<T, 10> *ssd, block *ot_input, block seed) {
-	block *mpcot_output = nullptr;
-	if(mpcot->mpcot_ran == false) {
-		mpcot_output = new block[mpcot->idx_max];
-		if(party == ALICE) mpcot->sender_init(Delta);
-		else mpcot->recver_init();
-		// for stationary SD assumption, we only need to run mpcot once, then ssd extend the same noise vector gen by mpcot
-		mpcot->mpcot(mpcot_output, preot, ot_input);
-	}
-	// else {
-	// 	// use the same mpcot output as the first extend
-	// 	mpcot->fetch_cache(mpcot_output);
-	// }
-	// lpn->compute(ot_output, ot_input+mpcot->consist_check_cot_num, seed);
-	ssd->compute(ot_output, mpcot_output, seed);
-	if(mpcot_output != nullptr) {
-		delete[] mpcot_output;
-	}
+		LpnF2<T, 10> *lpn, block *ot_input, block seed) {
+	if(party == ALICE) mpcot->sender_init(Delta);
+	else mpcot->recver_init();
+	mpcot->mpcot(ot_output, preot, ot_input);
+	lpn->compute(ot_output, ot_input+mpcot->consist_check_cot_num, seed);
 }
 
 // extend f2k (customized location)
@@ -86,8 +69,7 @@ void FerretCOT<T>::extend_f2k(block *ot_buffer) {
 	if(party == ALICE)
 	    pre_ot->send_pre(ot_pre_data, Delta);
 	else pre_ot->recv_pre(ot_pre_data);
-	// extend(ot_buffer, mpcot, pre_ot, lpn_f2, ot_pre_data);
-	extend(ot_buffer, mpcot, pre_ot, ssd_f2, ot_pre_data);
+	extend(ot_buffer, mpcot, pre_ot, lpn_f2, ot_pre_data);
 	memcpy(ot_pre_data, ot_buffer+ot_limit, M*sizeof(block));
 	ot_used = 0;
 }
@@ -129,26 +111,18 @@ void FerretCOT<T>::setup(std::string pre_file, bool *choice, block seed) {
 		io->send_data(&hasfile, sizeof(bool));
 		io->flush();
 	}
-	if(hasfile & hasfile2 & false) { // dstodo for setup debugging so & false, need to be removed
+	if(hasfile & hasfile2) {
 		Delta = (block)read_pre_data128_from_file((void*)ot_pre_data, pre_ot_filename);
 	} else {
-		std::cout << "Malicious: " << this->is_malicious << std::endl;
-		// send delta as initialization of pre_ot
 		if(party == BOB) base_cot->cot_gen_pre();
 		else base_cot->cot_gen_pre(Delta);
 
-		// tmp mpcot_init and lpn for small extension, using _pre params
-		// MpcotReg<T> mpcot_ini(party, threads, param.n_pre, param.t_pre, param.log_bin_sz_pre, pool, ios);
-		MpcotReg<T> mpcot_ini(party, threads, param.k_pre, param.t_pre, param.log_bin_sz_pre, pool, ios);
+		MpcotReg<T> mpcot_ini(party, threads, param.n_pre, param.t_pre, param.log_bin_sz_pre, pool, ios);
 		if(is_malicious) mpcot_ini.set_malicious();
 		OTPre<T> pre_ot_ini(ios[0], mpcot_ini.tree_height-1, mpcot_ini.tree_n);
-		// LpnF2<T, 10> lpn(party, param.n_pre, param.k_pre, pool, io, pool->size());
-		SsdF2<T, 10> ssd_init(party, param.n_pre, param.k_pre, pool, io, pool->size());
+		LpnF2<T, 10> lpn(party, param.n_pre, param.k_pre, pool, io, pool->size());
 
-		// the output of pre_data is used for lpn secret
-		// for ssd, no need to gen so many ot data
-		// block *pre_data_ini = new block[param.k_pre+mpcot_ini.consist_check_cot_num];
-		block *pre_data_ini = new block[mpcot_ini.consist_check_cot_num];
+		block *pre_data_ini = new block[param.k_pre+mpcot_ini.consist_check_cot_num];
 		memset(this->ot_pre_data, 0, param.n_pre*16);
 		if(this->is_malicious){
 			seed = zero_block;
@@ -156,15 +130,12 @@ void FerretCOT<T>::setup(std::string pre_file, bool *choice, block seed) {
 		}
 		if(choice){
             base_cot->cot_gen(&pre_ot_ini, pre_ot_ini.n, choice);
-            // base_cot->cot_gen(pre_data_ini, param.k_pre + mpcot_ini.consist_check_cot_num, choice+pre_ot_ini.n);
-            base_cot->cot_gen(pre_data_ini, mpcot_ini.consist_check_cot_num, choice+pre_ot_ini.n);
+            base_cot->cot_gen(pre_data_ini, param.k_pre + mpcot_ini.consist_check_cot_num, choice+pre_ot_ini.n);
         }else {
-            base_cot->cot_gen(&pre_ot_ini, pre_ot_ini.n); 
-            // base_cot->cot_gen(pre_data_ini, param.k_pre + mpcot_ini.consist_check_cot_num);
-            base_cot->cot_gen(pre_data_ini, mpcot_ini.consist_check_cot_num);
+            base_cot->cot_gen(&pre_ot_ini, pre_ot_ini.n); // for pre_ot only, then used for mpcot
+            base_cot->cot_gen(pre_data_ini, param.k_pre + mpcot_ini.consist_check_cot_num); // for lpn and mpcot both
         }
-		// extend(ot_pre_data, &mpcot_ini, &pre_ot_ini, &lpn, pre_data_ini, seed);
-		extend(ot_pre_data, &mpcot_ini, &pre_ot_ini, &ssd_init, pre_data_ini, seed);
+		extend(ot_pre_data, &mpcot_ini, &pre_ot_ini, &lpn, pre_data_ini, seed);
 		delete[] pre_data_ini;
 	}
 
@@ -271,8 +242,7 @@ int64_t FerretCOT<T>::rcot_inplace(block *ot_buffer, int64_t byte_space, block s
 		    pre_ot->send_pre(ot_pre_data, Delta);
 		else pre_ot->recv_pre(ot_pre_data);
 		if(this->is_malicious) seed = zero_block;
-		// extend(pt, mpcot, pre_ot, lpn_f2, ot_pre_data, seed);
-		extend(pt, mpcot, pre_ot, ssd_f2, ot_pre_data, seed);
+		extend(pt, mpcot, pre_ot, lpn_f2, ot_pre_data, seed);
 		pt += ot_limit;
 		memcpy(ot_pre_data, pt, M*sizeof(block));
 	}

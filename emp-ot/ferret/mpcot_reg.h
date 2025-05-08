@@ -26,6 +26,9 @@ public:
 	block Delta_f2k;
 	block *consist_check_chi_alpha = nullptr, *consist_check_VW = nullptr;
 	ThreadPool *pool;
+	// don't actually need, becausse ssd will cache
+	// block *output_cache = nullptr;
+	bool mpcot_ran = false;
 	
 	std::vector<uint32_t> item_pos_recver;
 	GaloisFieldPacking pack;
@@ -45,7 +48,12 @@ public:
 		this->tree_height = log_bin_sz+1;
 		this->leave_n = 1<<(this->tree_height-1);
 		this->tree_n = this->item_n;
+		this->mpcot_ran = false;
 	}
+
+	// ~MpcotReg () {
+	// 	if (output_cache != nullptr) delete[] output_cache;
+	// }
 
 	void set_malicious() {
 		this->is_malicious = true;
@@ -61,6 +69,7 @@ public:
 
 	// MPFSS F_2k
 	void mpcot(block * sparse_vector, OTPre<IO> * ot, block *pre_cot_data) {
+		// std::cout << "mpcot invoked" << std::endl;
 		if(party == BOB) consist_check_chi_alpha = new block[item_n];
 		consist_check_VW = new block[item_n];
 
@@ -83,7 +92,25 @@ public:
 
 		if(party == BOB) delete[] consist_check_chi_alpha;
 		delete[] consist_check_VW;
+
+		// cache the output for further copies
+		// actually this is done in ssd.
+		// if (output_cache != nullptr) delete[] output_cache;
+		// output_cache = new block[idx_max];
+		// memcpy(output_cache, sparse_vector, idx_max*sizeof(block));
+
+		mpcot_ran = true;
 	}
+
+	// void fetch_cache(block * sparse_vector) {
+	// 	std::cout << "fetch_cache invoked" << std::endl;
+	// 	if (output_cache != nullptr) {
+	// 		memcpy(sparse_vector, output_cache, idx_max*sizeof(block));
+	// 	} else {
+	// 		std::cout << "No cache found!" << std::endl;
+	// 		exit(1);
+	// 	}
+	// }
 
 	void mpcot_init_sender(vector<SPCOT_Sender<IO>*> &senders, OTPre<IO> *ot) {
 		for(int i = 0; i < tree_n; ++i) {

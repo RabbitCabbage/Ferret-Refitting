@@ -207,7 +207,8 @@ class BaseCotQuiet { public:
 			delete[] lists_prime;
 			free(sender_outputs);
 		} else {
-			ot_bool = new bool[size];
+			if (ot_bool == nullptr) 			
+				ot_bool = new bool[size];
 			// get the outputs: uint8_t array with listot_num, total listot_num entries
 			uint128_t *receiver_outputs;
 			posix_memalign((void **)&receiver_outputs, 64, listot_num * sizeof(uint128_t));
@@ -278,7 +279,8 @@ class BaseCotQuiet { public:
 			pre_ot->send_pre(ot_data, ot_delta);
 		} else {
 			PRG prg;
-			bool *ot_bool = new bool[size];
+			if (ot_bool == nullptr) 			
+				ot_bool = new bool[size];
 			if(pre_bool && !malicious)
 				memcpy(ot_bool, pre_bool, size);
 			else
@@ -286,7 +288,7 @@ class BaseCotQuiet { public:
 			cot_gen(ot_data, size, ot_bool);
 			pre_ot->recv_pre(ot_data, ot_bool);
 		}
-		delete [] ot_data;
+		delete[] ot_data;
 	}
 
 	// debug
