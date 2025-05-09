@@ -87,10 +87,15 @@ public:
 		ggm_tree[to_fill_idx] = nodes_sum ^ sum;
 		if(depth == this->depth-1) return;
 		if(item_n == 2)
-			prp->node_expand_2to4(&ggm_tree[0], &ggm_tree[0]);
+			prp->node_expand_2to4_correlated(&ggm_tree[0], &ggm_tree[0]);
 		else {
-			for(int i = item_n-4; i >= 0; i-=4)
-				prp->node_expand_4to8(&ggm_tree[i*2], &ggm_tree[i]);
+			if (depth == this->depth-2) {
+				for(int i = item_n-4; i >= 0; i-=4)
+					prp->node_expand_4to8(&ggm_tree[i*2], &ggm_tree[i]);
+			} else {
+				for(int i = item_n-4; i >= 0; i-=4)
+					prp->node_expand_4to8_correlated(&ggm_tree[i*2], &ggm_tree[i]);
+			}
 		}
 	}
 

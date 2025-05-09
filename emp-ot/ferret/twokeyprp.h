@@ -22,6 +22,16 @@ class TwoKeyPRP { public:
 		children[1] = children[1] ^ tmp[1];
 	}
 
+	void node_expand_1to2_correlated(block *children, block parent) {
+		// gen correlated children
+		// child1 = parent ^ child0
+		block tmp;
+		tmp = parent;
+		ParaEnc<1,1>(&tmp, aes_key);
+		children[0] = tmp;
+		children[1] = parent ^ tmp;
+	}
+
 	void node_expand_2to4(block *children, block *parent) {
 		//p[0],           p[1]
 		//c[0], c[1]      c[2], c[3]
@@ -37,6 +47,23 @@ class TwoKeyPRP { public:
 		children[1] = children[1] ^ tmp[2];
 		children[0] = children[0] ^ tmp[0];
 	}
+
+	void node_expand_2to4_correlated(block *children, block *parent) {
+		// gen correlated children
+		// child1 = parent ^ child0
+		block tmp[2];
+		//     p[0],			p[1]
+		// c[0],  c[1]      c[2],  c[3]
+		// t[0]  p[0]^t[0],t[1]  p[1]^t[1]
+		tmp[0] = parent[0];
+		tmp[1] = parent[1];
+		ParaEnc<2,1>(tmp, aes_key);
+		children[0] = tmp[0];
+		children[1] = tmp[0] ^ parent[0];
+		children[2] = tmp[1];
+		children[3] = tmp[1] ^ parent[1];
+	}
+
 	void node_expand_4to8(block *children, block *parent) {
 		//p[0],           p[1]                    p2             p3
 		//c[0], c[1]      c[2], c[3],       4      5           6     7
@@ -60,6 +87,28 @@ class TwoKeyPRP { public:
 		children[2] = children[2] ^ tmp[1];
 		children[1] = children[1] ^ tmp[4];
 		children[0] = children[0] ^ tmp[0];
+	}
+
+	void node_expand_4to8_correlated(block *children, block *parent) {
+		// gen correlated children
+		// child1 = parent ^ child0
+		block tmp[4];
+		//    p[0],       p[1],        p[2],      p[3]
+		// c[0], c[1], c[2], c[3], c[4], c[5], c[6], c[7]
+		// t[0]  tp[0],t[1]  tp[1],t[2]  tp[2],t[3]  tp[3]
+		tmp[0] = parent[0];
+		tmp[1] = parent[1];
+		tmp[2] = parent[2];
+		tmp[3] = parent[3];
+		ParaEnc<2,2>(tmp, aes_key);
+		children[0] = tmp[0];
+		children[1] = tmp[0] ^ parent[0];
+		children[2] = tmp[1];
+		children[3] = tmp[1] ^ parent[1];
+		children[4] = tmp[2];
+		children[5] = tmp[2] ^ parent[2];
+		children[6] = tmp[3];
+		children[7] = tmp[3] ^ parent[3];
 	}
 
 };
