@@ -90,8 +90,17 @@ public:
 			prp->node_expand_2to4_correlated(&ggm_tree[0], &ggm_tree[0]);
 		else {
 			if (depth == this->depth-2) {
-				for(int i = item_n-4; i >= 0; i-=4)
-					prp->node_expand_4to8(&ggm_tree[i*2], &ggm_tree[i]);
+				for(int i = item_n-4; i >= 0; i-=4) {
+					for (int j = 0; j < 4; ++j) {
+						// xor with 0
+						ggm_tree[j*2] = ggm_tree[j] ^ zero_block;
+						// xor with 1
+						ggm_tree[j*2+1] = ggm_tree[j] ^ makeBlock(0, 1);
+					}
+						
+					ccr_function(&ggm_tree[i*2], &ggm_tree[i*2], 8);
+					// prp->node_expand_4to8(&ggm_tree[i*2], &ggm_tree[i]);
+				}
 			} else {
 				for(int i = item_n-4; i >= 0; i-=4)
 					prp->node_expand_4to8_correlated(&ggm_tree[i*2], &ggm_tree[i]);

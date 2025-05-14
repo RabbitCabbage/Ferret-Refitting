@@ -45,7 +45,7 @@ FerretCOT<T>::~FerretCOT() {
 template<typename T>
 void FerretCOT<T>::extend_initialization() {
 	// lpn_f2 = new LpnF2<T, 10>(party, param.n, param.k, pool, io, pool->size());
-	ssd_f2 = new SsdF2<T, 10>(party, param.n, param.k, pool, io, pool->size());
+	ssd_f2 = new SsdF2<T>(party, param.n, param.k, pool, io, pool->size());
 	mpcot = new MpcotReg<T>(party, threads, param.n, param.t, param.log_bin_sz, pool, ios);
 	if(is_malicious) mpcot->set_malicious();
 
@@ -60,7 +60,7 @@ void FerretCOT<T>::extend_initialization() {
 template<typename T>
 void FerretCOT<T>::extend(block* ot_output, MpcotReg<T> *mpcot, OTPre<T> *preot, 
 		// LpnF2<T, 10> *lpn, block *ot_input, block seed) {
-		SsdF2<T, 10> *ssd, block *ot_input, block seed) {
+		SsdF2<T> *ssd, block *ot_input, block seed) {
 	block *mpcot_output = nullptr;
 	if(mpcot->mpcot_ran == false) {
 		mpcot_output = new block[mpcot->idx_max];
@@ -132,7 +132,7 @@ void FerretCOT<T>::setup(std::string pre_file, bool *choice, block seed) {
 	if(hasfile & hasfile2 & false) { // dstodo for setup debugging so & false, need to be removed
 		Delta = (block)read_pre_data128_from_file((void*)ot_pre_data, pre_ot_filename);
 	} else {
-		std::cout << "Malicious: " << this->is_malicious << std::endl;
+		// std::cout << "Malicious: " << this->is_malicious << std::endl;
 		// send delta as initialization of pre_ot
 		if(party == BOB) base_cot->cot_gen_pre();
 		else base_cot->cot_gen_pre(Delta);
@@ -143,7 +143,7 @@ void FerretCOT<T>::setup(std::string pre_file, bool *choice, block seed) {
 		if(is_malicious) mpcot_ini.set_malicious();
 		OTPre<T> pre_ot_ini(ios[0], mpcot_ini.tree_height-1, mpcot_ini.tree_n);
 		// LpnF2<T, 10> lpn(party, param.n_pre, param.k_pre, pool, io, pool->size());
-		SsdF2<T, 10> ssd_init(party, param.n_pre, param.k_pre, pool, io, pool->size());
+		SsdF2<T> ssd_init(party, param.n_pre, param.k_pre, pool, io, pool->size());
 
 		// the output of pre_data is used for lpn secret
 		// for ssd, no need to gen so many ot data

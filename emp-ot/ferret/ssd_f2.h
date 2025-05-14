@@ -4,7 +4,10 @@
 #include "emp-tool/emp-tool.h"
 using namespace emp;
 
-template<typename IO, int d = 10>
+// this file is wrong and deprecated
+// because the stationary is not implemented by cache the noise vector but by reuse the 1~(h-1) levels of the ggm tree for spcot.
+
+template<typename IO>
 class SsdF2 { public:
     int party;
     int64_t n;
@@ -13,6 +16,7 @@ class SsdF2 { public:
     int threads, k, mask;
     block seed;
     block *cache = nullptr;
+    std::vector<int> stationary_w;
 
     SsdF2 (int party, int64_t n, int k, ThreadPool * pool, IO *io, int threads) {
         this->party = party;
@@ -36,42 +40,22 @@ class SsdF2 { public:
     // compute: Stationary Syndrome Decoding
     // nn = H * kk, where H is the n*k parity check matrix, random
     // kk is the noise vector, cached by the stationary vector
-    void __compute4(block * nn, int64_t i, PRP * prp) {
-        block tmp[d];
-        for(int m = 0; m < d; ++m)
-            tmp[m] = makeBlock(i, m);
-        AES_ecb_encrypt_blks(tmp, d, &prp->aes);
-        uint32_t* r = (uint32_t*)(tmp);
-        for(int m = 0; m < 4; ++m)
-            for (int j = 0; j < d; ++j) {
-                int index = (*r) & mask;
-                ++r;
-                index = index >= k? index-k:index;
-                nn[i+m] = cache[index] ^ nn[i+m];
-            }
-    }
-
-    // compute: Stationary Syndrome Decoding
-    // nn = H * kk, where H is the parity check matrix, random
-    // kk is the noise vector, cached by the stationary vector
-    void __compute1(block * nn, int64_t i, PRP*prp) {
-        const auto nr_blocks = d/4 + (d % 4 != 0);
-        block tmp[nr_blocks];
-        for(int m = 0; m < nr_blocks; ++m)
-            tmp[m] = makeBlock(i, m);
-        prp->permute_block(tmp, nr_blocks);
-        uint32_t* r = (uint32_t*)(tmp);
-        for (int j = 0; j < d; ++j)
-            nn[i] = cache[r[j]%k] ^ nn[i];
+    void __compute(block * nn, int64_t i, PRG * prg) {
+        int w = stationary_w.size();
+        block* tmp = new block[w];
+        // random stationary_w blocks to be multiplied by cache
+        prg->random_block(tmp, w);
+        for (int j = 0; j < w; ++j) {
+            nn[i] = nn[i] ^ tmp[j]*cache[stationary_w[j]]; // dstodo: block multiplication?
+        }
+        delete[] tmp;
     }
 
     void task(block * nn, int64_t start, int64_t end) {
-        PRP prp(seed);
+        PRG prg(&seed);
         int64_t j = start;
-        for(; j < end-4; j+=4)
-            __compute4(nn, j, &prp);
         for(; j < end; ++j)
-            __compute1(nn, j, &prp);
+            __compute(nn, j, &prg);
     }
 
     void compute(block * nn, const block * kk, block s = zero_block) {
@@ -84,6 +68,13 @@ class SsdF2 { public:
             // cache the stationary noise vector
             memset(cache, 0, k*sizeof(block));
             memcpy(cache, kk, k*sizeof(block));
+            // count the stationary weight of the noise vector
+            stationary_w.clear();
+            for (int i = 0; i < k; ++i) {
+                // std::cout << cache[i] << std::endl;
+                if (!cmpBlock(&cache[i], &zero_block, 1)) stationary_w.push_back(i);
+            }
+            std::cout << stationary_w.size() << std::endl;
         } 
         // else {
         //     // compare the cache with the new kk

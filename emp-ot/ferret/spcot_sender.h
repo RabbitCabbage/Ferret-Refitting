@@ -85,8 +85,20 @@ class SPCOT_Sender { public:
 		int h = depth-2;
 		ot_msg_0[h] = ot_msg_1[h] = zero_block;
 		int sz = 1<<h;
+		// using ccr_function
 		for(int i = sz-4; i >=0; i-=4) {
-			prp->node_expand_4to8(&ggm_tree[i*2], &ggm_tree[i]);
+			// prepare the input, 8 blocks in total
+			// temporarily put the input in ggm_tree[i*2] (children)
+			for (int j = 0; j < 4; ++j) {
+				// xor with 0
+				ggm_tree[j*2] = ggm_tree[j] ^ zero_block;
+				// xor with 1
+				ggm_tree[j*2+1] = ggm_tree[j] ^ makeBlock(0, 1);
+			}
+				
+			ccr_function(&ggm_tree[i*2], &ggm_tree[i*2], 8);
+
+			// prp->node_expand_4to8(&ggm_tree[i*2], &ggm_tree[i]);
 			ot_msg_0[h] ^= ggm_tree[i*2];
 			ot_msg_0[h] ^= ggm_tree[i*2+2];
 			ot_msg_0[h] ^= ggm_tree[i*2+4];

@@ -71,7 +71,7 @@ private:
 	ThreadPool *pool = nullptr;
 	MpcotReg<T> *mpcot = nullptr;
 	// LpnF2<T, 10> *lpn_f2 = nullptr;
-	SsdF2<T, 10> *ssd_f2 = nullptr;
+	SsdF2<T> *ssd_f2 = nullptr;
 
 	
 	void online_sender(block *data, int64_t length);
@@ -90,7 +90,7 @@ private:
 	// further extensions: keep using the same cot
 	// it seems the delta is not changed, maybe, store a bool and the cache in the mpcot_reg
 	void extend(block* ot_output, MpcotReg<T> *mpfss, OTPre<T> *preot, 
-			SsdF2<T, 10> *ssd_f2, block *ot_input, block seed = zero_block);
+			SsdF2<T> *ssd_f2, block *ot_input, block seed = zero_block);
 
 	void extend_f2k(block *ot_buffer);
 
