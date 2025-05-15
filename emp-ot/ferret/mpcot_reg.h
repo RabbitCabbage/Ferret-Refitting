@@ -30,6 +30,8 @@ public:
 	std::vector<uint32_t> item_pos_recver;
 	GaloisFieldPacking pack;
 
+	vector<SPCOT_Sender<IO>*> senders;
+
 	MpcotReg(int party, int threads, int n, int t, int log_bin_sz, ThreadPool * pool, IO **ios) {
 		this->party = party;
 		this->threads = threads;
@@ -45,6 +47,11 @@ public:
 		this->tree_height = log_bin_sz+1;
 		this->leave_n = 1<<(this->tree_height-1);
 		this->tree_n = this->item_n;
+		this->senders.clear();
+	}
+
+	~MpcotReg() {
+		for (auto p : senders) delete p;
 	}
 
 	void set_malicious() {
@@ -64,12 +71,13 @@ public:
 		if(party == BOB) consist_check_chi_alpha = new block[item_n];
 		consist_check_VW = new block[item_n];
 
-		vector<SPCOT_Sender<IO>*> senders;
 		vector<SPCOT_Recver<IO>*> recvers;
 
 		if(party == ALICE) {
-			mpcot_init_sender(senders, ot);
-			exec_parallel_sender(senders, ot, sparse_vector);
+			if(senders.empty()) {
+				mpcot_init_sender(senders, ot);
+			}
+			exec_parallel_sender(senders, ot, sparse_vector);			
 		} else {
 			mpcot_init_recver(recvers, ot);
 			exec_parallel_recver(recvers, ot, sparse_vector);
@@ -78,7 +86,7 @@ public:
 		if(is_malicious)
 			consistency_check_f2k(pre_cot_data, tree_n);
 
-		for (auto p : senders) delete p;
+		// for (auto p : senders) delete p;
 		for (auto p : recvers) delete p;
 
 		if(party == BOB) delete[] consist_check_chi_alpha;

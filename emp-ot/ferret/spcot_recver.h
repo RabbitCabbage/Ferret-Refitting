@@ -87,10 +87,25 @@ public:
 		ggm_tree[to_fill_idx] = nodes_sum ^ sum;
 		if(depth == this->depth-1) return;
 		if(item_n == 2)
-			prp->node_expand_2to4(&ggm_tree[0], &ggm_tree[0]);
+			prp->node_expand_2to4_correlated(&ggm_tree[0], &ggm_tree[0]);
 		else {
-			for(int i = item_n-4; i >= 0; i-=4)
-				prp->node_expand_4to8(&ggm_tree[i*2], &ggm_tree[i]);
+			if (depth == this->depth-2) {
+				for(int i = item_n-4; i >= 0; i-=4) {
+					// for (int j = 0; j < 4; ++j) {
+					// 	// std::cout << "ggm_tree[" << i+j << "] = " << ggm_tree[i+j] << std::endl;
+					// 	// xor with 0
+					// 	ggm_tree[i*2+j*2] = ggm_tree[i+j] ^ zero_block;
+					// 	// xor with 1
+					// 	ggm_tree[i*2+j*2+1] = ggm_tree[i+j] ^ makeBlock(0, 1);
+					// }
+						
+					// ccr_function(&ggm_tree[i*2], &ggm_tree[i*2], 8);
+					prp->node_expand_4to8(&ggm_tree[i*2], &ggm_tree[i]);
+				}
+			} else {
+				for(int i = item_n-4; i >= 0; i-=4)
+					prp->node_expand_4to8_correlated(&ggm_tree[i*2], &ggm_tree[i]);
+			}
 		}
 	}
 

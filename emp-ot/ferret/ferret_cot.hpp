@@ -5,7 +5,7 @@ FerretCOT<T>::FerretCOT(int party, int threads, T **ios,
 	this->threads = threads;
 	io = ios[0];
 	this->ios = ios;
-	this->is_malicious = malicious;
+	this->is_malicious = false;
 	one = makeBlock(0xFFFFFFFFFFFFFFFFLL,0xFFFFFFFFFFFFFFFELL);
 	ch[0] = zero_block;
 	base_cot = new BaseCot<T>(party, io, malicious);
@@ -111,7 +111,7 @@ void FerretCOT<T>::setup(std::string pre_file, bool *choice, block seed) {
 		io->send_data(&hasfile, sizeof(bool));
 		io->flush();
 	}
-	if(hasfile & hasfile2) {
+	if(hasfile & hasfile2 & false) {
 		Delta = (block)read_pre_data128_from_file((void*)ot_pre_data, pre_ot_filename);
 	} else {
 		if(party == BOB) base_cot->cot_gen_pre();
